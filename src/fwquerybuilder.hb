@@ -49,18 +49,23 @@ Return Self
 Method GetSql()
     Local cSql
     Local cAlias
+    Local cFrom
     Local aFields
+    Local aOrderBy
 
-    aFields := {}
-    cAlias  := ::NextAlias()
-    AEval( ::aSelect, { |cField| AAdd( aFields, cAlias + "." + cField ) } )
+    aFields  := {}
+    aOrderBy := {}
+    cAlias   := Quoted( ::NextAlias() )
+    cFrom    := Quoted( ::cFrom )
+    AEval( ::aSelect, { |cField| AAdd( aFields, cAlias + "." + Quoted( cField ) ) } )
+    AEval( ::aOrderBy, { |cOrder| AAdd( aOrderBy, cAlias + "." + Quoted( cOrder ) ) } )
 
-    cSql := "SELECT " + StrJoin( aFields, "," + CRLF + Space( 7 ) ) + CRLF
-    cSql += "FROM   " + ::cFrom + " " + cAlias + CRLF
-    cSql += "WHERE  " + cAlias + ".D_E_L_E_T_ <> '*'" + CRLF
+    cSql := "SELECT   " + StrJoin( aFields, "," + CRLF + Space( 9 ) ) + CRLF
+    cSql += "FROM     " + cFrom + " " + cAlias + CRLF
+    cSql += "WHERE    " + cAlias + "." + Quoted( "D_E_L_E_T_" ) + " <> '*'" + CRLF
 
-    If !Empty( ::aOrderBy )
-        cSql += "ORDER BY " + StrJoin( ::aOrderBy, ", " )
+    If !Empty( aOrderBy )
+        cSql += "ORDER BY " + StrJoin( aOrderBy, ", " )
     EndIf
 
 Return cSql
