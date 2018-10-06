@@ -5,17 +5,20 @@
 
 Class FWQueryBuilder
     Hidden:
-    Data aOrderBy As Array
-    Data aSelect  As Array
-    Data cFrom    As String
+    Data aFrom       As Array
+    Data aOrderBy    As Array
+    Data aSelect     As Array
+    Data cLastSelect As String
 
+    Data nCurrAlias
     Data nNextAlias
 
     Export:
     Method New() Constructor
+    Method As( cAs )
     Method From( cTable )
     Method OrderBy( aOrderBy )
-    Method Select( aSelect )
+    Method Select( xSelect )
 
     Method GetSql()
 
@@ -25,6 +28,7 @@ EndClass
 
 Method New() Class FWQueryBuilder
     ::nNextAlias := 0
+    ::aSelect    := {}
     ::aOrderBy   := {}
 Return Self
 
@@ -33,13 +37,32 @@ Method NextAlias() Class FWQueryBuilder
     ::nNextAlias++
 Return cAlias
 
-Method Select( aSelect ) Class FWQueryBuilder
-    HB_DEFAULT( @aSelect, {} )
-    ::aSelect := aSelect
+Method As( cAs ) Class FWQueryBuilder
+    Local nIndex
+
+    If ::cLastSelect <> Nil
+        nIndex := AScan( ::aSelect, ::cLastSelect )
+        ::aSelect[ nIndex ] := { ::cLastSelect, cAs }
+    EndIf
 Return Self
 
 Method From( cFrom ) Class FWQueryBuilder
-    ::cFrom := cFrom
+    Local nCurrAlias := ::NextAlias()
+
+    ::aFrom      := { cFrom, nCurrAlias }
+    ::nCurrAlias := nCurrAlias
+Return Self
+
+Method Select( xSelect ) Class FWQueryBuilder
+    If ValType( xSelect ) == 'C'
+        xSelect := { xSelect }
+    EndIf
+
+    If !Empty( xSelect )
+        ::cLastSelect := ATail( xSelect )
+    EndIf
+
+    AEval( xSelect, { |cField| AAdd( ::aSelect, cField ) } )
 Return Self
 
 Method OrderBy( aOrderBy ) Class FWQueryBuilder
@@ -50,33 +73,53 @@ Method GetSql()
     Local cSql
     Local cAlias
     Local cFrom
-    Local aFields
-    Local aOrderBy
 
     aFields  := {}
     aOrderBy := {}
-    cAlias   := Quoted( ::NextAlias() )
-    cFrom    := Quoted( ::cFrom )
-    AEval( ::aSelect, { |cField| AAdd( aFields, cAlias + "." + Quoted( cField ) ) } )
-    AEval( ::aOrderBy, { |cOrder| AAdd( aOrderBy, cAlias + "." + Quoted( cOrder ) ) } )
+    cPrefix  := ::aFrom[ 2 ]
+    cFrom    := Quoted( ::aFrom[ 1 ] ) + " " + cPrefix
 
-    cSql := "SELECT   " + StrJoin( aFields, "," + CRLF + Space( 9 ) ) + CRLF
-    cSql += "FROM     " + cFrom + " " + cAlias + CRLF
-    cSql += "WHERE    " + cAlias + "." + Quoted( "D_E_L_E_T_" ) + " <> '*'" + CRLF
+    cSql := "SELECT   " + GenFields( ::aSelect, cPrefix, 9, .T. ) + CRLF
+    cSql += "FROM     " + cFrom + CRLF
+    cSql += "WHERE    " + cPrefix + "." + Quoted( "D_E_L_E_T_" ) + " <> '*'" + CRLF
 
-    If !Empty( aOrderBy )
-        cSql += "ORDER BY " + StrJoin( aOrderBy, ", " )
+    If !Empty( ::aOrderBy )
+        cSql += "ORDER BY " + GenFields( ::aOrderBy, cPrefix )
     EndIf
 
 Return cSql
 
-Static Function StrJoin( aWords, cSeparator )
-    Local nLength := Len( aWords )
+Static Function GenFields( aFields, cPrefix, nSpaces, lNewline )
+    Local nLength
     Local nIndex
-    Local cResult := ''
+    Local cSeparator
+    Local cResult
+    Local xField
 
+    HB_DEFAULT( @nSpaces, 1 )
+    HB_DEFAULT( @lNewline, .F. )
+
+    cSeparator := ","
+    If lNewline
+        cSeparator += CRLF
+    EndIf
+    cSeparator += Space( nSpaces )
+
+    If !Empty( cPrefix )
+        cPrefix += "."
+    EndIf
+
+    nLength := Len( aFields )
+    cResult := ""
     For nIndex := 1 To nLength
-        cResult += aWords[ nIndex ]
+        xField = aFields[ nIndex ]
+        cResult += cPrefix
+        If ValType( xField ) == 'A'
+            cResult += Quoted( xField[ 1 ] ) + " AS " + Quoted( xField[ 2 ] )
+        Else
+            cResult += Quoted( xField )
+        EndIf
+
         If nIndex < nLength
             cResult += cSeparator
         EndIf
@@ -88,6 +131,7 @@ Procedure Main()
 
     oQuery := FWQueryBuilder():New()
     oQuery:Select( { "T9_CODBEM", "T9_CONTACU" } )
+    oQuery:Select( "T9_HORINI" ):As( "START_HOUR" )
     oQuery:From( "ST9" )
     oQuery:OrderBy( { "T9_CODBEM", "T9_CONTACU" } )
 
