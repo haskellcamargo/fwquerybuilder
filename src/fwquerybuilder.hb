@@ -1,17 +1,20 @@
 #include 'hbclass.ch'
 
 #define CRLF Chr( 13 ) + Chr( 10 )
+#define Quoted( cId ) "[" + cId + "]"
 
 Class FWQueryBuilder
     Hidden:
-    Data aSelect As Array
-    Data cTable As String
+    Data aOrderBy As Array
+    Data aSelect  As Array
+    Data cFrom    As String
 
     Data nNextAlias
 
     Export:
     Method New() Constructor
     Method From( cTable )
+    Method OrderBy( aOrderBy )
     Method Select( aSelect )
 
     Method GetSql()
@@ -22,6 +25,7 @@ EndClass
 
 Method New() Class FWQueryBuilder
     ::nNextAlias := 0
+    ::aOrderBy   := {}
 Return Self
 
 Method NextAlias() Class FWQueryBuilder
@@ -29,13 +33,17 @@ Method NextAlias() Class FWQueryBuilder
     ::nNextAlias++
 Return cAlias
 
-Method Select( aSelect )
+Method Select( aSelect ) Class FWQueryBuilder
     HB_DEFAULT( @aSelect, {} )
     ::aSelect := aSelect
 Return Self
 
-Method From( cTable )
-    ::cTable := cTable
+Method From( cFrom ) Class FWQueryBuilder
+    ::cFrom := cFrom
+Return Self
+
+Method OrderBy( aOrderBy ) Class FWQueryBuilder
+    ::aOrderBy := aOrderBy
 Return Self
 
 Method GetSql()
@@ -48,8 +56,13 @@ Method GetSql()
     AEval( ::aSelect, { |cField| AAdd( aFields, cAlias + "." + cField ) } )
 
     cSql := "SELECT " + StrJoin( aFields, "," + CRLF + Space( 7 ) ) + CRLF
-    cSql += "FROM   " + ::cTable + " " + cAlias + CRLF
+    cSql += "FROM   " + ::cFrom + " " + cAlias + CRLF
     cSql += "WHERE  " + cAlias + ".D_E_L_E_T_ <> '*'" + CRLF
+
+    If !Empty( ::aOrderBy )
+        cSql += "ORDER BY " + StrJoin( ::aOrderBy, ", " )
+    EndIf
+
 Return cSql
 
 Static Function StrJoin( aWords, cSeparator )
@@ -71,5 +84,6 @@ Procedure Main()
     oQuery := FWQueryBuilder():New()
     oQuery:Select( { "T9_CODBEM", "T9_CONTACU" } )
     oQuery:From( "ST9" )
+    oQuery:OrderBy( { "T9_CODBEM", "T9_CONTACU" } )
 
     ? oQuery:GetSql()
