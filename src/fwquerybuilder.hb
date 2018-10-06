@@ -1,0 +1,4 @@
+
+
+Procedure Main()
+    ? 1

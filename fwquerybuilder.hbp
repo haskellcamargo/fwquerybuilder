@@ -1,0 +1,6 @@
+-b
+-hbexe
+./src/fwquerybuilder.hb
+-o./bin/fwquerybuilder.hb
+-exospace
+-std
