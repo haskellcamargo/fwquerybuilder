@@ -34,7 +34,11 @@
 #define ORDER_MODE_ASC  "ASC"
 #define ORDER_MODE_DESC "DESC"
 
+#ifdef __HARBOUR__
 Class QueryBuilder
+#else
+Class QueryBuilder From LongNameClass
+#endif
     Data aFrom       As Array
     Data aGroupBy    As Array
     Data aOrderBy    As Array
@@ -68,7 +72,7 @@ Method New() Class QueryBuilder
     ::aGroupBy   := {}
     ::aOrderBy   := {}
     ::aSelect    := {}
-    ::aWhere     := { { "D_E_L_E_T", "<>", "'*'" } }
+    ::aWhere     := { { "D_E_L_E_T_", "<>", "'*'" } }
 Return Self
 
 Method NextAlias() Class QueryBuilder
