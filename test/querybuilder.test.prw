@@ -13,6 +13,7 @@ TestSuite QueryBuilder Description "Query Builder"
     Feature _07_ Description "ORDER BY"
     Feature _08_ Description "ORDER BY ASC"
     Feature _09_ Description "ORDER BY DESC"
+    Feature _10_ Description "SELECT TOP"
 EndTestSuite
 
 Feature _01_ TestSuite QueryBuilder
@@ -154,6 +155,21 @@ Feature _09_ TestSuite QueryBuilder
     oQuery := QueryBuilder():New()
     oQuery:From( "STJ990" ):OrderBy( "TJ_POSCONT" ):Asc()
     oQuery:OrderBy( { "TJ_CODBEM" } ):Desc()
+
+    ::Expect( oQuery:GetSql() ):ToBe( cExpect )
+Return
+
+Feature _10_ TestSuite QueryBuilder
+    Local oQuery
+    Local cExpect
+
+    cExpect := "SELECT TOP 10 TJ_ORDEM," + CRLF
+    cExpect += "              TJ_CODBEM" + CRLF
+    cExpect += "FROM     STJ990" + CRLF
+    cExpect += "WHERE    D_E_L_E_T_ <> '*'" + CRLF
+
+    oQuery := QueryBuilder():New()
+    oQuery:Top( 10 ):Select({ "TJ_ORDEM", "TJ_CODBEM" }):From( "STJ990" )
 
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )
 Return

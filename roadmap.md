@@ -12,6 +12,7 @@
 - [ ] Inner join
 - [ ] Where clause
 - [ ] CTE support
+- [x] Top (limit)
 - [ ] Function aggregation on top select
     - [x] SUM
     - [ ] AVG

@@ -44,6 +44,7 @@ Class QueryBuilder From LongNameClass
     Data aOrderBy    As Array
     Data aSelect     As Array
     Data aWhere      As Array
+    Data nTop        As Numeric
     Data nLastOp     As Numeric
     Data cLastOp     As String
     Data aLastOp     As Array
@@ -61,6 +62,7 @@ Class QueryBuilder From LongNameClass
     Method OrderBy( xOrderBy )
     Method Select( xSelect )
     Method Sum( xExpr )
+    Method Top( nTop )
 
     Method GetSql()
 
@@ -260,24 +262,36 @@ Method Sum( xExpr ) Class QueryBuilder
     ::aLastOp := aValue
 Return Self
 
+/**
+ * :Select( "A" ):Top( 10 )
+ * :Top( 20 )
+ */
+Method Top( nTop ) Class QueryBuilder
+    If ValType( nTop ) <> "N"
+        UserException( "TOP: expected number" )
+    EndIf
+
+    ::nTop := nTop
+Return Self
+
 Method GetSql() Class QueryBuilder
     Local cSql
 
-    cSql := GenSelect( ::aSelect )
+    cSql := GenSelect( ::aSelect, ::nTop )
     cSql += GenFrom( ::aFrom )
     cSql += GenGroupBy( ::aGroupBy )
     cSql += GenWhere( ::aWhere )
     cSql += GenOrderBy( ::aOrderBy )
 Return cSql
 
-Static Function GenSelect( aSelect )
+Static Function GenSelect( aSelect, nTop )
     Local cSelect
     Local nLength
     Local nIndex
     Local aField
     Local cSeparator
 
-    cSelect := "SELECT   "
+    cSelect := IIf( nTop == Nil, "SELECT   ", "SELECT TOP " + AllTrim( Str( nTop ) ) + " " )
     // Create separator with given spacing
     cSeparator := "," + CRLF + Space( Len( cSelect ) )
     nLength    := Len( aSelect )
