@@ -9,7 +9,10 @@
 - [x] Custom alias for table
 - [x] Group by
     - [ ] Having clause
-- [ ] Inner join
+- [ ] Join
+    - [x] Simple join
+    - [ ] Inner join
+    - [ ] Left join
 - [ ] Where clause
 - [ ] CTE support
 - [x] Top (limit)

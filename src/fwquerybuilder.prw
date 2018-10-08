@@ -28,11 +28,22 @@
 #define ORDER_VALUE 1
 #define ORDER_MODE  2
 
+#define BINARY_EXPR_LEFT  1
+#define BINARY_EXPR_OP    2
+#define BINARY_EXPR_RIGHT 3
+
+#define JOIN_MODE   1
+#define JOIN_TABLE  2
+#define JOIN_VALUES 3
+
 #define SELECT_FUNCTION_COUNT "COUNT"
 #define SELECT_FUNCTION_SUM   "SUM"
 
 #define ORDER_MODE_ASC  "ASC"
 #define ORDER_MODE_DESC "DESC"
+
+#define JOIN_MODE_INNER "INNER"
+#define JOIN_MODE_LEFT  "LEFT"
 
 #ifdef __HARBOUR__
 Class QueryBuilder
@@ -46,6 +57,8 @@ Class QueryBuilder From LongNameClass
     Data aWhere      As Array
     Data oUnion      As Object
     Data lUnionAll   As Logical
+    Data aJoin       As Array
+    Data aJoins      As Array
     Data nTop        As Numeric
     Data nLastOp     As Numeric
     Data cLastOp     As String
@@ -60,8 +73,11 @@ Class QueryBuilder From LongNameClass
     Method Asc()
     Method Count( xExpr )
     Method Desc()
+    Method Equals( xRight )
     Method From( cTable ) Constructor
     Method GroupBy( xGroupBy )
+    Method Join( cJoin )
+    Method On( xLeft )
     Method OrderBy( xOrderBy )
     Method Select( xSelect )
     Method Sum( xExpr )
@@ -80,6 +96,7 @@ Method New() Class QueryBuilder
     ::aOrderBy   := {}
     ::aSelect    := {}
     ::aWhere     := { { "D_E_L_E_T_", "<>", "'*'" } }
+    ::aJoins     := {}
     ::lUnionAll  := .F.
     ::lDidMount  := .T.
 Return Self
@@ -143,6 +160,21 @@ Method Desc() Class QueryBuilder
 Return Self
 
 /**
+ * :Join( "A" ):On( "B" ):Equals( "C" )
+ */
+Method Equals( xRight ) Class QueryBuilder
+    Local aPeek
+
+    If Empty( ::aJoin )
+        UserException( "EQUALS: not inside predicate")
+    EndIf
+
+    aPeek := ATail( ::aJoin[ JOIN_VALUES ] )
+    aPeek[ BINARY_EXPR_OP ]   := '='
+    aPeek[ BINARY_EXPR_RIGHT ] := xRight
+Return Self
+
+/**
  * :From( "ST9" )
  */
 Method From( cFrom ) Class QueryBuilder
@@ -193,6 +225,28 @@ Method GroupBy( xGroupBy ) Class QueryBuilder
             ::aLastOp := aValue
         EndIf
     Next
+Return Self
+
+/**
+ * :Join( "A" )
+ */
+Method Join( cJoin ) Class QueryBuilder
+    If ValType( cJoin ) <> "C"
+        UserException( "JOIN: expected string" )
+    EndIf
+
+    ::aJoin := { Nil, cJoin, {} }
+    AAdd( ::aJoins, ::aJoin )
+Return Self
+
+/**
+ * :Join( "A" ):On( "B" )
+ */
+Method On( xLeft ) Class QueryBuilder
+    Local aValue
+
+    aValue := { xLeft, Nil, Nil }
+    AAdd( ::aJoin[ JOIN_VALUES ], aValue )
 Return Self
 
 /**
@@ -313,6 +367,7 @@ Method GetSql() Class QueryBuilder
 
     cSql := GenSelect( ::aSelect, ::nTop )
     cSql += GenFrom( ::aFrom )
+    cSql += GenJoins( ::aJoins )
     cSql += GenGroupBy( ::aGroupBy )
     cSql += GenWhere( ::aWhere )
     cSql += GenOrderBy( ::aOrderBy )
@@ -371,6 +426,38 @@ Static Function GenFrom( aFrom )
     EndIf
     cFrom += CRLF
 Return cFrom
+
+Static Function GenJoins( aJoins )
+    Local cJoins
+    Local cJoin
+    Local nIndex
+    Local nLength
+    Local aJoin
+    Local cSeparator
+    Local cCommand
+    Local nPred
+    Local nPredLength
+
+    cJoins := ""
+    If Empty( aJoins )
+        Return cJoins
+    EndIf
+
+    nLength := Len( aJoins )
+    For nIndex := 1 To nLength
+        aJoin       := aJoins[ nIndex ]
+        cCommand    := IIf( Empty( aJoin[ JOIN_MODE ] ), "JOIN    ", aJoin[ JOIN_MODE ] + " JOIN " )
+        cJoins      += cCommand + " " + aJoin[ JOIN_TABLE ] + CRLF
+        nPredLength := Len( aJoin[ JOIN_VALUES ] )
+        For nPred := 1 To nPredLength
+            cJoins += "  ON     "
+            cJoins += aJoin[ JOIN_VALUES, nPred, BINARY_EXPR_LEFT ]
+            cJoins += " " + aJoin[ JOIN_VALUES, nPred, BINARY_EXPR_OP ] + " "
+            cJoins += aJoin[ JOIN_VALUES, nPred, BINARY_EXPR_RIGHT ]
+        Next
+        cJoins += CRLF
+    Next
+Return cJoins
 
 Static Function GenGroupBy( aGroupBy )
     Local cGroupBy
