@@ -19,6 +19,7 @@ TestSuite QueryBuilder Description "Query Builder"
     Feature _13_ Description "JOIN"
     Feature _14_ Description "INNER JOIN"
     Feature _15_ Description "LEFT JOIN"
+    Feature _16_ Description "JOIN multiple tables"
 EndTestSuite
 
 Feature _01_ TestSuite QueryBuilder
@@ -267,6 +268,28 @@ Feature _15_ TestSuite QueryBuilder
     oQuery:Select( "TJ_ORDEM" ):From( "STJ990" )
     oQuery:LeftJoin( "ST9990" )
     oQuery:On( "TJ_ORDEM" ):Equals( "T9_CODBEM" )
+
+    ::Expect( oQuery:GetSql() ):ToBe( cExpect )
+Return
+
+Feature _16_ TestSuite QueryBuilder
+    Local oQuery
+    Local cExpect
+
+    cExpect := "SELECT   TJ_ORDEM" + CRLF
+    cExpect += "FROM     STJ990" + CRLF
+    cExpect += "LEFT JOIN ST9990" + CRLF
+    cExpect += "  ON  TJ_ORDEM = T9_CODBEM" + CRLF
+    cExpect += "INNER JOIN STC990" + CRLF
+    cExpect += "  ON  TJ_ORDEM = TC_CODBEM" + CRLF
+    cExpect += "WHERE    D_E_L_E_T_ <> '*'" + CRLF
+
+    oQuery := QueryBuilder():New()
+    oQuery:Select( "TJ_ORDEM" ):From( "STJ990" )
+    oQuery:LeftJoin( "ST9990" )
+    oQuery:On( "TJ_ORDEM" ):Equals( "T9_CODBEM" )
+    oQuery:InnerJoin( "STC990" )
+    oQuery:On( "TJ_ORDEM" ):Equals( "TC_CODBEM" )
 
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )
 Return

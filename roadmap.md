@@ -13,7 +13,7 @@
     - [x] Simple join
     - [x] Inner join
     - [x] Left join
-    - [ ] Multiple joins
+    - [x] Multiple joins
 - [ ] Where clause
 - [ ] CTE support
 - [x] Top (limit)
