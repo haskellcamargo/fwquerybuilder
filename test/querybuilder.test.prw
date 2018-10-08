@@ -17,6 +17,7 @@ TestSuite QueryBuilder Description "Query Builder"
     Feature _11_ Description "UNION"
     Feature _12_ Description "UNION ALL"
     Feature _13_ Description "JOIN"
+    Feature _14_ Description "INNER JOIN"
 EndTestSuite
 
 Feature _01_ TestSuite QueryBuilder
@@ -222,12 +223,30 @@ Feature _13_ TestSuite QueryBuilder
     cExpect := "SELECT   TJ_ORDEM" + CRLF
     cExpect += "FROM     STJ990" + CRLF
     cExpect += "JOIN     ST9990" + CRLF
-    cExpect += "  ON     TJ_ORDEM = T9_CODBEM" + CRLF
+    cExpect += "  ON  TJ_ORDEM = T9_CODBEM" + CRLF
     cExpect += "WHERE    D_E_L_E_T_ <> '*'" + CRLF
 
     oQuery := QueryBuilder():New()
     oQuery:Select( "TJ_ORDEM" ):From( "STJ990" )
     oQuery:Join( "ST9990" )
+    oQuery:On( "TJ_ORDEM" ):Equals( "T9_CODBEM" )
+
+    ::Expect( oQuery:GetSql() ):ToBe( cExpect )
+Return
+
+Feature _14_ TestSuite QueryBuilder
+    Local oQuery
+    Local cExpect
+
+    cExpect := "SELECT   TJ_ORDEM" + CRLF
+    cExpect += "FROM     STJ990" + CRLF
+    cExpect += "INNER JOIN ST9990" + CRLF
+    cExpect += "  ON  TJ_ORDEM = T9_CODBEM" + CRLF
+    cExpect += "WHERE    D_E_L_E_T_ <> '*'" + CRLF
+
+    oQuery := QueryBuilder():New()
+    oQuery:Select( "TJ_ORDEM" ):From( "STJ990" )
+    oQuery:InnerJoin( "ST9990" )
     oQuery:On( "TJ_ORDEM" ):Equals( "T9_CODBEM" )
 
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )

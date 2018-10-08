@@ -11,7 +11,7 @@
     - [ ] Having clause
 - [ ] Join
     - [x] Simple join
-    - [ ] Inner join
+    - [x] Inner join
     - [ ] Left join
 - [ ] Where clause
 - [ ] CTE support

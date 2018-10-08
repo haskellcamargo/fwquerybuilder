@@ -76,7 +76,8 @@ Class QueryBuilder From LongNameClass
     Method Equals( xRight )
     Method From( cTable ) Constructor
     Method GroupBy( xGroupBy )
-    Method Join( cJoin )
+    Method InnerJoin( cJoin )
+    Method Join( cJoin, nMode )
     Method On( xLeft )
     Method OrderBy( xOrderBy )
     Method Select( xSelect )
@@ -228,14 +229,21 @@ Method GroupBy( xGroupBy ) Class QueryBuilder
 Return Self
 
 /**
+ * :InnerJoin( "A" )
+ */
+Method InnerJoin( cJoin ) Class QueryBuilder
+    ::Join( cJoin, JOIN_MODE_INNER )
+Return Self
+
+/**
  * :Join( "A" )
  */
-Method Join( cJoin ) Class QueryBuilder
+Method Join( cJoin, nMode ) Class QueryBuilder
     If ValType( cJoin ) <> "C"
         UserException( "JOIN: expected string" )
     EndIf
 
-    ::aJoin := { Nil, cJoin, {} }
+    ::aJoin := { nMode, cJoin, {} }
     AAdd( ::aJoins, ::aJoin )
 Return Self
 
@@ -446,11 +454,11 @@ Static Function GenJoins( aJoins )
     nLength := Len( aJoins )
     For nIndex := 1 To nLength
         aJoin       := aJoins[ nIndex ]
-        cCommand    := IIf( Empty( aJoin[ JOIN_MODE ] ), "JOIN    ", aJoin[ JOIN_MODE ] + " JOIN " )
-        cJoins      += cCommand + " " + aJoin[ JOIN_TABLE ] + CRLF
+        cCommand    := IIf( Empty( aJoin[ JOIN_MODE ] ), "JOIN     ", aJoin[ JOIN_MODE ] + " JOIN " )
+        cJoins      += cCommand + aJoin[ JOIN_TABLE ] + CRLF
         nPredLength := Len( aJoin[ JOIN_VALUES ] )
         For nPred := 1 To nPredLength
-            cJoins += "  ON     "
+            cJoins += "  ON  "
             cJoins += aJoin[ JOIN_VALUES, nPred, BINARY_EXPR_LEFT ]
             cJoins += " " + aJoin[ JOIN_VALUES, nPred, BINARY_EXPR_OP ] + " "
             cJoins += aJoin[ JOIN_VALUES, nPred, BINARY_EXPR_RIGHT ]
