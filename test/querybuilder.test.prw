@@ -14,6 +14,8 @@ TestSuite QueryBuilder Description "Query Builder"
     Feature _08_ Description "ORDER BY ASC"
     Feature _09_ Description "ORDER BY DESC"
     Feature _10_ Description "SELECT TOP"
+    Feature _11_ Description "UNION"
+    Feature _12_ Description "UNION ALL"
 EndTestSuite
 
 Feature _01_ TestSuite QueryBuilder
@@ -170,6 +172,44 @@ Feature _10_ TestSuite QueryBuilder
 
     oQuery := QueryBuilder():New()
     oQuery:Top( 10 ):Select({ "TJ_ORDEM", "TJ_CODBEM" }):From( "STJ990" )
+
+    ::Expect( oQuery:GetSql() ):ToBe( cExpect )
+Return
+
+Feature _11_ TestSuite QueryBuilder
+    Local oQuery
+    Local cExpect
+
+    cExpect := "SELECT   TJ_CODBEM" + CRLF
+    cExpect += "FROM     STJ990" + CRLF
+    cExpect += "WHERE    D_E_L_E_T_ <> '*'" + CRLF
+    cExpect += "UNION" + CRLF
+    cExpect += "SELECT   *" + CRLF
+    cExpect += "FROM     ST9990" + CRLF
+    cExpect += "WHERE    D_E_L_E_T_ <> '*'" + CRLF
+
+    oQuery := QueryBuilder():New()
+    oQuery:Select( "TJ_CODBEM" ):From( "STJ990" )
+    oQuery:Union( QueryBuilder():From( "ST9990" ) )
+
+    ::Expect( oQuery:GetSql() ):ToBe( cExpect )
+Return
+
+Feature _12_ TestSuite QueryBuilder
+    Local oQuery
+    Local cExpect
+
+    cExpect := "SELECT   TJ_CODBEM" + CRLF
+    cExpect += "FROM     STJ990" + CRLF
+    cExpect += "WHERE    D_E_L_E_T_ <> '*'" + CRLF
+    cExpect += "UNION ALL" + CRLF
+    cExpect += "SELECT   *" + CRLF
+    cExpect += "FROM     ST9990" + CRLF
+    cExpect += "WHERE    D_E_L_E_T_ <> '*'" + CRLF
+
+    oQuery := QueryBuilder():New()
+    oQuery:Select( "TJ_CODBEM" ):From( "STJ990" )
+    oQuery:UnionAll( QueryBuilder():From( "ST9990" ) )
 
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )
 Return

@@ -44,10 +44,13 @@ Class QueryBuilder From LongNameClass
     Data aOrderBy    As Array
     Data aSelect     As Array
     Data aWhere      As Array
+    Data oUnion      As Object
+    Data lUnionAll   As Logical
     Data nTop        As Numeric
     Data nLastOp     As Numeric
     Data cLastOp     As String
     Data aLastOp     As Array
+    Data lDidMount   As Logical
 
     Data nCurrAlias
     Data nNextAlias
@@ -57,12 +60,14 @@ Class QueryBuilder From LongNameClass
     Method Asc()
     Method Count( xExpr )
     Method Desc()
-    Method From( cTable )
+    Method From( cTable ) Constructor
     Method GroupBy( xGroupBy )
     Method OrderBy( xOrderBy )
     Method Select( xSelect )
     Method Sum( xExpr )
     Method Top( nTop )
+    Method Union( oRight )
+    Method UnionAll( oRight )
 
     Method GetSql()
 
@@ -75,6 +80,8 @@ Method New() Class QueryBuilder
     ::aOrderBy   := {}
     ::aSelect    := {}
     ::aWhere     := { { "D_E_L_E_T_", "<>", "'*'" } }
+    ::lUnionAll  := .F.
+    ::lDidMount  := .T.
 Return Self
 
 Method NextAlias() Class QueryBuilder
@@ -144,6 +151,10 @@ Method From( cFrom ) Class QueryBuilder
 
     If ValType( cFrom ) <> "C"
         UserException( "FROM: expected string" )
+    EndIf
+
+    If Empty( ::lDidMount )
+        ::New()
     EndIf
 
     aFrom := { cFrom, Nil }
@@ -274,6 +285,29 @@ Method Top( nTop ) Class QueryBuilder
     ::nTop := nTop
 Return Self
 
+/**
+ * :From( "A" ):Union( QueryBuilder():From( "B" ) )
+ */
+Method Union( oRight ) Class QueryBuilder
+    If ValType( oRight ) <> "O"
+        UserException( "UNION: expected object" )
+    EndIf
+
+    ::oUnion := oRight
+Return Self
+
+/**
+ * :From( "A" ):UnionAll( QueryBuilder():From( "B" ) )
+ */
+Method UnionAll( oRight ) Class QueryBuilder
+    If ValType( oRight ) <> "O"
+        UserException( "UNION ALL: expected object" )
+    EndIf
+
+    ::lUnionAll := .T.
+    ::oUnion    := oRight
+Return Self
+
 Method GetSql() Class QueryBuilder
     Local cSql
 
@@ -282,6 +316,7 @@ Method GetSql() Class QueryBuilder
     cSql += GenGroupBy( ::aGroupBy )
     cSql += GenWhere( ::aWhere )
     cSql += GenOrderBy( ::aOrderBy )
+    cSql += GenUnion( ::oUnion, ::lUnionAll )
 Return cSql
 
 Static Function GenSelect( aSelect, nTop )
@@ -385,6 +420,16 @@ Static Function GenOrderBy( aOrderBy, nSpaces, lNewline )
     EndIf
 Return cOrderBy
 
+Static Function GenUnion( oUnion, lUnionAll )
+    Local cUnion := ""
+
+    Default lUnionAll := .F.
+    If oUnion <> Nil
+        cUnion := IIf( lUnionAll, "UNION ALL", "UNION" ) + CRLF
+        cUnion += oUnion:GetSql()
+    EndIf
+Return cUnion
+
 Static Function GenWhere( aWhere )
     Local cWhere
     Local nIndex
@@ -409,24 +454,3 @@ Static Function GenWhere( aWhere )
         cWhere += CRLF
     EndIf
 Return cWhere
-
-#ifdef __HARBOUR__
-Procedure Main()
-#else
-User Function Build()
-#endif
-    Local oQuery
-
-    oQuery := QueryBuilder():New()
-    oQuery:Select( { "T9_FILIAL", "T9_CODBEM", "T9_CONTACU" } )
-    oQuery:Sum( "T9_CONTACU" )
-    oQuery:Count()
-    oQuery:Select( "T9_HORINI" ):_As( "START_HOUR" )
-    oQuery:Select( "T9_NOME" ):_As( "NAME" )
-    oQuery:From( "ST9" ):_As( "T9" )
-    oQuery:GroupBy( "T9_CONTACU" )
-    oQuery:GroupBy( { "AND_OTHER", "ANOTHER" } )
-    oQuery:OrderBy( { "T9_CODBEM" } )
-    oQuery:OrderBy( "T9_NOME" ):Desc()
-
-    ConOut( oQuery:GetSql() )
