@@ -6,12 +6,18 @@
 - [x] Simple alias for field
 - [x] Simple order by
 - [x] Not deleted in select by default
-- [ ] Custom alias for table
-- [ ] Group by
+- [x] Custom alias for table
+- [x] Group by
+    - [ ] Having clause
 - [ ] Inner join
 - [ ] Where clause
 - [ ] CTE support
 - [ ] Function aggregation on top select
+    - [x] SUM
+    - [ ] AVG
+    - [x] COUNT
+    - [ ] MAX
+    - [ ] MIN
 - [ ] Subqueries
 - [ ] Parameters coming from user
 - [ ] Export query to workarea/alias
