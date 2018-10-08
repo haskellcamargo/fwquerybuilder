@@ -78,6 +78,7 @@ Class QueryBuilder From LongNameClass
     Method GroupBy( xGroupBy )
     Method InnerJoin( cJoin )
     Method Join( cJoin, nMode )
+    Method LeftJoin( cJoin )
     Method On( xLeft )
     Method OrderBy( xOrderBy )
     Method Select( xSelect )
@@ -245,6 +246,13 @@ Method Join( cJoin, nMode ) Class QueryBuilder
 
     ::aJoin := { nMode, cJoin, {} }
     AAdd( ::aJoins, ::aJoin )
+Return Self
+
+/**
+ * :LeftJoin( "A" )
+ */
+Method LeftJoin( cJoin ) Class QueryBuilder
+    ::Join( cJoin, JOIN_MODE_LEFT )
 Return Self
 
 /**

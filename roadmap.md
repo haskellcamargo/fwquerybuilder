@@ -12,7 +12,8 @@
 - [ ] Join
     - [x] Simple join
     - [x] Inner join
-    - [ ] Left join
+    - [x] Left join
+    - [ ] Multiple joins
 - [ ] Where clause
 - [ ] CTE support
 - [x] Top (limit)
@@ -25,6 +26,12 @@
 - [ ] Subqueries
 - [ ] Parameters coming from user
 - [ ] Export query to workarea/alias
+
+### Operators
+
+- [x] Equals
+- [ ] Not
+- [ ] Like
 
 ### Configuration
 
