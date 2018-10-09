@@ -25,6 +25,7 @@ TestSuite QueryBuilder Description "Query Builder"
     Feature _19_ Description "AVG"
     Feature _20_ Description "MAX and MIN"
     Feature _21_ Description "Subquery"
+    Feature _22_ Description "LIKE"
 EndTestSuite
 
 Feature _01_ TestSuite QueryBuilder
@@ -396,6 +397,21 @@ Feature _21_ TestSuite QueryBuilder
     oSubQuery:And( "F" ):Equals( QueryBuilder():From( "SUBSUB" ) )
     oQuery := QueryBuilder():New()
     oQuery:From( "DRAG_RACE" ):Where( "KIND" ):_In( oSubQuery )
+
+    ::Expect( oQuery:GetSql() ):ToBe( cExpect )
+Return
+
+Feature _22_ TestSuite QueryBuilder
+    Local oQuery
+    Local cExpect
+
+    cExpect := "SELECT *" + CRLF
+    cExpect += "FROM ST9990" + CRLF
+    cExpect += "WHERE D_E_L_E_T_ <> '*'" + CRLF
+    cExpect += "  AND T9_NOMBEM LIKE '%TORNO%'" + CRLF
+
+    oQuery := QueryBuilder():New()
+    oQuery:From( "ST9990" ):Where( "T9_NOMBEM" ):Like( "%TORNO%" )
 
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )
 Return

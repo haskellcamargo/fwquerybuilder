@@ -43,7 +43,7 @@
 
 - [x] Equals
 - [ ] Not
-- [ ] Like
+- [x] Like
 
 ### Configuration
 

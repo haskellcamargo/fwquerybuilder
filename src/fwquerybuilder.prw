@@ -106,6 +106,7 @@ Class QueryBuilder From LongNameClass
     Method Equals( xRight )
     Method GreaterThan( xRight )
     Method _In( xRight )
+    Method Like( xRight )
 
     // Aggregation functions
     Method Avg( xExpr )
@@ -447,6 +448,16 @@ Return Self
 Method _In( xRight ) Class QueryBuilder
     ::PushNode( xRight )
     ::PushNode( "IN" )
+    ::Shift()
+Return Self
+
+Method Like( cRight ) Class QueryBuilder
+    If ValType( cRight ) <> "C"
+        UserException( "LIKE: expected pattern" )
+    EndIf
+
+    ::PushNode( ValToSql( cRight ) )
+    ::PushNode( "LIKE" )
     ::Shift()
 Return Self
 
