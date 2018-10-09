@@ -21,10 +21,6 @@
 
 #define GROUP_VALUE 1
 
-#define WHERE_LEFT     1
-#define WHERE_OPERATOR 2
-#define WHERE_RIGHT    3
-
 #define ORDER_VALUE 1
 #define ORDER_MODE  2
 
@@ -73,28 +69,43 @@ Class QueryBuilder From LongNameClass
     Data nNextAlias
 
     Method New() Constructor
+
+    // Select
     Method _As( cAs )
-    Method Asc()
     Method Count( xExpr )
-    Method Desc()
-    Method Equals( xRight )
     Method From( cTable ) Constructor
-    Method GreaterThan( xRight )
-    Method GroupBy( xGroupBy )
+    Method Select( xSelect )
+    Method Sum( xExpr )
+    Method Top( nTop )
+
+    // Unions
+    Method Union( oRight )
+    Method UnionAll( oRight )
+
+    // Joins
     Method InnerJoin( cJoin )
     Method Join( cJoin, nMode )
     Method LeftJoin( cJoin )
     Method On( xLeft )
-    Method OrderBy( xOrderBy )
-    Method Select( xSelect )
-    Method Sum( xExpr )
-    Method Top( nTop )
-    Method Union( oRight )
-    Method UnionAll( oRight )
+
+    // Where clause and predicates
+    Method And( xLeft )
     Method Where( xLeft )
 
+    // Ordering and grouping
+    Method Asc()
+    Method Desc()
+    Method GroupBy( xGroupBy )
+    Method OrderBy( xOrderBy )
+
+    // Binary operators
+    Method Equals( xRight )
+    Method GreaterThan( xRight )
+
+    // Exposed API
     Method GetSql()
 
+    // Internal methods
     Method BinaryExpr( cOperator, xRight )
     Method NextAlias()
 EndClass
@@ -413,6 +424,20 @@ Method Where( xLeft ) Class QueryBuilder
     AAdd( ::aWhere, aValue )
 Return Self
 
+/**
+ * :Where( "A" ):Equals( "B" ):And( "C" ):Equals( "D" )
+ */
+Method And( xLeft ) Class QueryBuilder
+    Do Case
+        Case ::nMode == IN_JOIN_MODE
+            ::On( xLeft )
+        Case ::nMode == IN_WHERE_MODE
+            ::Where( xLeft )
+        Otherwise
+            UserException( "AND: not inside predicate")
+    EndCase
+Return Self
+
 Method GetSql() Class QueryBuilder
     Local cSql
 
@@ -480,14 +505,9 @@ Return cFrom
 
 Static Function GenJoins( aJoins )
     Local cJoins
-    Local cJoin
     Local nIndex
     Local nLength
     Local aJoin
-    Local cSeparator
-    Local cCommand
-    Local nPred
-    Local nPredLength
 
     cJoins := ""
     If Empty( aJoins )
@@ -496,17 +516,11 @@ Static Function GenJoins( aJoins )
 
     nLength := Len( aJoins )
     For nIndex := 1 To nLength
-        aJoin       := aJoins[ nIndex ]
-        cCommand    := IIf( Empty( aJoin[ JOIN_MODE ] ), "JOIN ", aJoin[ JOIN_MODE ] + " JOIN " )
-        cJoins      += cCommand + aJoin[ JOIN_TABLE ] + CRLF
-        nPredLength := Len( aJoin[ JOIN_VALUES ] )
-        For nPred := 1 To nPredLength
-            cJoins += "  ON "
-            cJoins += aJoin[ JOIN_VALUES, nPred, BINARY_EXPR_LEFT ]
-            cJoins += " " + aJoin[ JOIN_VALUES, nPred, BINARY_EXPR_OP ] + " "
-            cJoins += aJoin[ JOIN_VALUES, nPred, BINARY_EXPR_RIGHT ]
-        Next
-        cJoins += CRLF
+        aJoin    := aJoins[ nIndex ]
+        cJoins += IIf( Empty( aJoin[ JOIN_MODE ] ), "JOIN ", aJoin[ JOIN_MODE ] + " JOIN " )
+        cJoins += aJoin[ JOIN_TABLE ] + CRLF
+        cJoins += "  ON "
+        cJoins += GenPredicates( aJoin[ JOIN_VALUES ] ) + CRLF
     Next
 Return cJoins
 
@@ -570,25 +584,33 @@ Return cUnion
 
 Static Function GenWhere( aWhere )
     Local cWhere
+    Local nLength
+
+    If Empty( aWhere )
+        cWhere := ""
+    Else
+        cWhere := "WHERE "
+        cWhere += GenPredicates( aWhere ) + CRLF
+    EndIf
+
+Return cWhere
+
+Static Function GenPredicates( aExpr )
+    Local cPred
     Local nIndex
     Local nLength
     Local cSeparator
 
-    nLength := Len( aWhere )
-    If nLength == 0
-        cWhere := ""
-    Else
-        cWhere := "WHERE "
-        cSeparator := "," + CRLF + "  AND "
-        For nIndex := 1 To nLength
-            cWhere += aWhere[ nIndex, WHERE_LEFT ]
-            cWhere += " " + aWhere[ nIndex, WHERE_OPERATOR ] + " "
-            cWhere += aWhere[ nIndex, WHERE_RIGHT ]
+    cPred   := ""
+    nLength := Len( aExpr )
+    cSeparator := CRLF + "  AND "
+    For nIndex := 1 To nLength
+        cPred += aExpr[ nIndex, BINARY_EXPR_LEFT ]
+        cPred += " " + aExpr[ nIndex, BINARY_EXPR_OP ] + " "
+        cPred += aExpr[ nIndex, BINARY_EXPR_RIGHT ]
 
-            If nIndex < nLength
-                cWhere += cSeparator
-            EndIf
-        Next
-        cWhere += CRLF
-    EndIf
-Return cWhere
+        If nIndex < nLength
+            cPred += cSeparator
+        EndIf
+    Next
+Return cPred

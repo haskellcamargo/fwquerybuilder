@@ -21,6 +21,7 @@ TestSuite QueryBuilder Description "Query Builder"
     Feature _15_ Description "LEFT JOIN"
     Feature _16_ Description "JOIN multiple tables"
     Feature _17_ Description "WHERE"
+    Feature _18_ Description "AND"
 EndTestSuite
 
 Feature _01_ TestSuite QueryBuilder
@@ -299,19 +300,38 @@ Feature _17_ TestSuite QueryBuilder
     Local oQuery
     Local cExpect
 
-    // cExpect := "SELECT   TJ_ORDEM" + CRLF
-    // cExpect += "FROM STJ990" + CRLF
-    // cExpect += "LEFT JOIN ST9990" + CRLF
-    // cExpect += "  ON TJ_ORDEM = T9_CODBEM" + CRLF
-    // cExpect += "INNER JOIN STC990" + CRLF
-    // cExpect += "  ON TJ_ORDEM = TC_CODBEM" + CRLF
-    // cExpect += "WHERE D_E_L_E_T_ <> '*'" + CRLF
+    cExpect := "SELECT *" + CRLF
+    cExpect += "FROM ST9990" + CRLF
+    cExpect += "WHERE D_E_L_E_T_ <> '*'" + CRLF
+    cExpect += "  AND T9_CONTACU > OTHER_FIELD" + CRLF
 
     oQuery := QueryBuilder():New()
     oQuery:From( "ST9990" ):Where( "T9_CONTACU" ):GreaterThan( "OTHER_FIELD" )
-    ConOut( oQuery:GetSql() )
 
-    // ::Expect( oQuery:GetSql() ):ToBe( cExpect )
+    ::Expect( oQuery:GetSql() ):ToBe( cExpect )
+Return
+
+Feature _18_ TestSuite QueryBuilder
+    Local oQuery
+    Local cExpect
+
+    cExpect := "SELECT *" + CRLF
+    cExpect += "FROM ST9990" + CRLF
+    cExpect += "INNER JOIN FEELINGS" + CRLF
+    cExpect += "  ON DEPRESSION > INFINITY"  + CRLF
+    cExpect += "  AND SADNESS = BLAH" + CRLF
+    cExpect += "WHERE D_E_L_E_T_ <> '*'" + CRLF
+    cExpect += "  AND T9_CONTACU > OTHER_FIELD" + CRLF
+    cExpect += "  AND A = B" + CRLF
+
+    oQuery := QueryBuilder():New()
+    oQuery:From( "ST9990" )
+    oQuery:InnerJoin( "FEELINGS" ):On( "DEPRESSION" ):GreaterThan( "INFINITY" )
+    oQuery:And( "SADNESS" ):Equals( "BLAH" )
+    oQuery:Where( "T9_CONTACU" ):GreaterThan( "OTHER_FIELD" )
+    oQuery:And( "A" ):Equals( "B" )
+
+    ::Expect( oQuery:GetSql() ):ToBe( cExpect )
 Return
 
 CompileTestSuite QueryBuilder

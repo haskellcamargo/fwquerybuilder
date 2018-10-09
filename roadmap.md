@@ -9,7 +9,17 @@
 - [x] Custom alias for table
 - [x] Group by
     - [ ] Having clause
-- [ ] Join
+- [ ] Expressions
+    - [x] Equals
+    - [x] Greater than
+    - [ ] Less than
+    - [ ] Greater or equal
+    - [ ] Less or equal
+    - [ ] IN clause
+    - [ ] Exists clause
+    - [x] AND
+    - [ ] OR
+- [x] Join
     - [x] Simple join
     - [x] Inner join
     - [x] Left join
