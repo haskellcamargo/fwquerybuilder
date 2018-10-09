@@ -32,9 +32,6 @@
 #define JOIN_TABLE  2
 #define JOIN_VALUES 3
 
-#define SELECT_FUNCTION_COUNT "COUNT"
-#define SELECT_FUNCTION_SUM   "SUM"
-
 #define ORDER_MODE_ASC  "ASC"
 #define ORDER_MODE_DESC "DESC"
 
@@ -65,17 +62,12 @@ Class QueryBuilder From LongNameClass
     Data aLastOp     As Array
     Data lDidMount   As Logical
 
-    Data nCurrAlias
-    Data nNextAlias
-
     Method New() Constructor
 
     // Select
     Method _As( cAs )
-    Method Count( xExpr )
     Method From( cTable ) Constructor
     Method Select( xSelect )
-    Method Sum( xExpr )
     Method Top( nTop )
 
     // Unions
@@ -88,31 +80,36 @@ Class QueryBuilder From LongNameClass
     Method LeftJoin( cJoin )
     Method On( xLeft )
 
-    // Where clause and predicates
-    Method And( xLeft )
+    // Where clause
     Method Where( xLeft )
 
-    // Ordering and grouping
+    // Ordering
     Method Asc()
     Method Desc()
-    Method GroupBy( xGroupBy )
     Method OrderBy( xOrderBy )
 
-    // Binary operators
+    // Grouping
+    Method GroupBy( xGroupBy )
+
+    // Binary expressions
+    Method And( xLeft )
     Method Equals( xRight )
     Method GreaterThan( xRight )
+
+    // Aggregation functions
+    Method Count( xExpr )
+    Method Sum( xExpr )
 
     // Exposed API
     Method GetSql()
 
     // Internal methods
     Method BinaryExpr( cOperator, xRight )
-    Method NextAlias()
+    Method CallExpr( cCallee, xParam )
 EndClass
 
 Method New() Class QueryBuilder
     ::nMode      := 0
-    ::nNextAlias := 0
     ::aGroupBy   := {}
     ::aOrderBy   := {}
     ::aSelect    := {}
@@ -140,15 +137,19 @@ Method BinaryExpr( cOperator, xRight ) Class QueryBuilder
     aPeek[ BINARY_EXPR_RIGHT ] := xRight
 Return Self
 
-Method NextAlias() Class QueryBuilder
-    Local cAlias := "TB" + AllTrim( Str( ::nNextAlias ) )
-    ::nNextAlias++
-Return cAlias
+Method CallExpr( cCallee, xParam ) Class QueryBuilder
+    Local aValue
 
-/**
- * :Select( "T9_CODBEM" ):_As( "NAME" )
- * :From( "ST9" ):_As( "T9" )
- */
+    aValue := { Nil, xParam, Nil, cCallee }
+    AAdd( ::aSelect, aValue )
+    ::nLastOp := OP_SELECT
+    ::aLastOp := aValue
+Return Self
+
+//------------------------------------------------------------------------------
+// SELECT
+//------------------------------------------------------------------------------
+
 Method _As( cAs ) Class QueryBuilder
     Do Case
         Case ::nLastOp == OP_SELECT
@@ -158,55 +159,6 @@ Method _As( cAs ) Class QueryBuilder
     EndCase
 Return Self
 
-/**
- * :OrderBy( "C" ):Asc()
- * :OrderBy( { "A", "B" } ):Asc()
- */
-Method Asc() Class QueryBuilder
-    If ::nLastOp == OP_ORDER
-        ::aLastOp[ ORDER_MODE ] := ORDER_MODE_ASC
-    Else
-        UserException( "ASC: can only be applied to an ORDER BY clause" )
-    EndIf
-Return Self
-
-/**
- * :Select( "A" ):Count( "B" )
- * :Count( "C")
- * :Count()
- */
-Method Count( xExpr ) Class QueryBuilder
-    Local aValue
-
-    Default xExpr := "1"
-
-    aValue := { Nil, xExpr, Nil, SELECT_FUNCTION_COUNT }
-    AAdd( ::aSelect, aValue )
-    ::nLastOp := OP_SELECT
-    ::aLastOp := aValue
-Return Self
-
-/**
- * :OrderBy( "C" ):Desc()
- * :OrderBy( { "A", "B" } ):Desc()
- */
-Method Desc() Class QueryBuilder
-    If ::nLastOp == OP_ORDER
-        ::aLastOp[ ORDER_MODE ] := ORDER_MODE_DESC
-    Else
-        UserException( "DESC: can only be applied to an ORDER BY clause" )
-    EndIf
-Return Self
-
-/**
- * :Join( "A" ):On( "B" ):Equals( "C" )
- */
-Method Equals( xRight ) Class QueryBuilder
-Return ::BinaryExpr( "=", xRight )
-
-/**
- * :From( "ST9" )
- */
 Method From( cFrom ) Class QueryBuilder
     Local nIndex
     Local aFrom
@@ -225,117 +177,6 @@ Method From( cFrom ) Class QueryBuilder
     ::aLastOp    := aFrom
 Return Self
 
-/**
- * :Where( "A" ):GreaterThan( "B" )
- */
-Method GreaterThan( xRight ) Class QueryBuilder
-Return ::BinaryExpr( ">", xRight )
-
-/**
- * :GroupBy( "A" )
- * :GroupBy( { "B", "C" } )
- */
-Method GroupBy( xGroupBy ) Class QueryBuilder
-    Local nIndex
-    Local nLength
-    Local cType
-    Local aValue
-
-    cType := ValType( xGroupBy )
-    // Normalize string to array
-    If cType == "C"
-        xGroupBy := { xGroupBy }
-    ElseIf cType <> "A"
-        UserException( "GROUP BY: expected string or array" )
-    EndIf
-
-    nLength := Len( xGroupBy )
-    For nIndex := 1 To nLength
-        If ValType( xGroupBy[ nIndex ] ) <> "C"
-            UserException( "GROUP BY: expected string" )
-        EndIf
-        aValue := { xGroupBy[ nIndex ] }
-        AAdd( ::aGroupBy, aValue )
-        If nIndex == nLength
-            ::nLastOp := OP_GROUP
-            ::aLastOp := aValue
-        EndIf
-    Next
-Return Self
-
-/**
- * :InnerJoin( "A" )
- */
-Method InnerJoin( cJoin ) Class QueryBuilder
-    ::Join( cJoin, JOIN_MODE_INNER )
-Return Self
-
-/**
- * :Join( "A" )
- */
-Method Join( cJoin, nMode ) Class QueryBuilder
-    If ValType( cJoin ) <> "C"
-        UserException( "JOIN: expected string" )
-    EndIf
-
-    ::nMode := IN_JOIN_MODE
-    ::aJoin := { nMode, cJoin, {} }
-    AAdd( ::aJoins, ::aJoin )
-Return Self
-
-/**
- * :LeftJoin( "A" )
- */
-Method LeftJoin( cJoin ) Class QueryBuilder
-    ::Join( cJoin, JOIN_MODE_LEFT )
-Return Self
-
-/**
- * :Join( "A" ):On( "B" )
- */
-Method On( xLeft ) Class QueryBuilder
-    Local aValue
-
-    aValue := { xLeft, Nil, Nil }
-    AAdd( ::aJoin[ JOIN_VALUES ], aValue )
-Return Self
-
-/**
- * :OrderBy( { "A", "B" } )
- * :OrderBy( "C" )
- */
-Method OrderBy( xOrderBy ) Class QueryBuilder
-    Local nIndex
-    Local nLength
-    Local cType
-    Local aValue
-
-    cType := ValType( xOrderBy )
-    // Normalize string to array
-    If cType == "C"
-        xOrderBy := { xOrderBy }
-    ElseIf cType <> "A"
-        UserException( "ORDER BY: expected string or array" )
-    EndIf
-
-    nLength := Len( xOrderBy )
-    For nIndex := 1 To nLength
-        If ValType( xOrderBy[ nIndex ] ) <> "C"
-            UserException( "ORDER BY: expected string" )
-        EndIf
-        aValue := { xOrderBy[ nIndex ], Nil }
-        AAdd( ::aOrderBy, aValue )
-        If nIndex == nLength
-            ::nLastOp := OP_ORDER
-            ::aLastOp := aValue
-        EndIf
-    Next
-Return Self
-
-/**
- * :Select( "NAME" )
- * :Select( { "NAME", "AGE", "0" } )
- */
 Method Select( xSelect ) Class QueryBuilder
     Local nIndex
     Local nLength
@@ -365,23 +206,6 @@ Method Select( xSelect ) Class QueryBuilder
     Next
 Return Self
 
-/**
- * :Select( "A" ):Sum( "B" )
- * :Sum( "C" )
- */
-Method Sum( xExpr ) Class QueryBuilder
-    Local aValue
-
-    aValue := { Nil, xExpr, Nil, SELECT_FUNCTION_SUM }
-    AAdd( ::aSelect, aValue )
-    ::nLastOp := OP_SELECT
-    ::aLastOp := aValue
-Return Self
-
-/**
- * :Select( "A" ):Top( 10 )
- * :Top( 20 )
- */
 Method Top( nTop ) Class QueryBuilder
     If ValType( nTop ) <> "N"
         UserException( "TOP: expected number" )
@@ -390,9 +214,10 @@ Method Top( nTop ) Class QueryBuilder
     ::nTop := nTop
 Return Self
 
-/**
- * :From( "A" ):Union( QueryBuilder():From( "B" ) )
- */
+//------------------------------------------------------------------------------
+// UNIONS
+//------------------------------------------------------------------------------
+
 Method Union( oRight ) Class QueryBuilder
     If ValType( oRight ) <> "O"
         UserException( "UNION: expected object" )
@@ -401,9 +226,6 @@ Method Union( oRight ) Class QueryBuilder
     ::oUnion := oRight
 Return Self
 
-/**
- * :From( "A" ):UnionAll( QueryBuilder():From( "B" ) )
- */
 Method UnionAll( oRight ) Class QueryBuilder
     If ValType( oRight ) <> "O"
         UserException( "UNION ALL: expected object" )
@@ -413,9 +235,39 @@ Method UnionAll( oRight ) Class QueryBuilder
     ::oUnion    := oRight
 Return Self
 
-/**
- * :Where( "A" )
- */
+//------------------------------------------------------------------------------
+// JOINS
+//------------------------------------------------------------------------------
+
+Method InnerJoin( cJoin ) Class QueryBuilder
+    ::Join( cJoin, JOIN_MODE_INNER )
+Return Self
+
+Method Join( cJoin, nMode ) Class QueryBuilder
+    If ValType( cJoin ) <> "C"
+        UserException( "JOIN: expected string" )
+    EndIf
+
+    ::nMode := IN_JOIN_MODE
+    ::aJoin := { nMode, cJoin, {} }
+    AAdd( ::aJoins, ::aJoin )
+Return Self
+
+Method LeftJoin( cJoin ) Class QueryBuilder
+    ::Join( cJoin, JOIN_MODE_LEFT )
+Return Self
+
+Method On( xLeft ) Class QueryBuilder
+    Local aValue
+
+    aValue := { xLeft, Nil, Nil }
+    AAdd( ::aJoin[ JOIN_VALUES ], aValue )
+Return Self
+
+//------------------------------------------------------------------------------
+// WHERE
+//------------------------------------------------------------------------------
+
 Method Where( xLeft ) Class QueryBuilder
     Local aValue
 
@@ -424,9 +276,90 @@ Method Where( xLeft ) Class QueryBuilder
     AAdd( ::aWhere, aValue )
 Return Self
 
-/**
- * :Where( "A" ):Equals( "B" ):And( "C" ):Equals( "D" )
- */
+//------------------------------------------------------------------------------
+// ORDERING
+//------------------------------------------------------------------------------
+
+Method Asc() Class QueryBuilder
+    If ::nLastOp == OP_ORDER
+        ::aLastOp[ ORDER_MODE ] := ORDER_MODE_ASC
+    Else
+        UserException( "ASC: can only be applied to an ORDER BY clause" )
+    EndIf
+Return Self
+
+Method Desc() Class QueryBuilder
+    If ::nLastOp == OP_ORDER
+        ::aLastOp[ ORDER_MODE ] := ORDER_MODE_DESC
+    Else
+        UserException( "DESC: can only be applied to an ORDER BY clause" )
+    EndIf
+Return Self
+
+Method OrderBy( xOrderBy ) Class QueryBuilder
+    Local nIndex
+    Local nLength
+    Local cType
+    Local aValue
+
+    cType := ValType( xOrderBy )
+    // Normalize string to array
+    If cType == "C"
+        xOrderBy := { xOrderBy }
+    ElseIf cType <> "A"
+        UserException( "ORDER BY: expected string or array" )
+    EndIf
+
+    nLength := Len( xOrderBy )
+    For nIndex := 1 To nLength
+        If ValType( xOrderBy[ nIndex ] ) <> "C"
+            UserException( "ORDER BY: expected string" )
+        EndIf
+        aValue := { xOrderBy[ nIndex ], Nil }
+        AAdd( ::aOrderBy, aValue )
+        If nIndex == nLength
+            ::nLastOp := OP_ORDER
+            ::aLastOp := aValue
+        EndIf
+    Next
+Return Self
+
+//------------------------------------------------------------------------------
+// GROUPING
+//------------------------------------------------------------------------------
+
+Method GroupBy( xGroupBy ) Class QueryBuilder
+    Local nIndex
+    Local nLength
+    Local cType
+    Local aValue
+
+    cType := ValType( xGroupBy )
+    // Normalize string to array
+    If cType == "C"
+        xGroupBy := { xGroupBy }
+    ElseIf cType <> "A"
+        UserException( "GROUP BY: expected string or array" )
+    EndIf
+
+    nLength := Len( xGroupBy )
+    For nIndex := 1 To nLength
+        If ValType( xGroupBy[ nIndex ] ) <> "C"
+            UserException( "GROUP BY: expected string" )
+        EndIf
+        aValue := { xGroupBy[ nIndex ] }
+        AAdd( ::aGroupBy, aValue )
+        If nIndex == nLength
+            ::nLastOp := OP_GROUP
+            ::aLastOp := aValue
+        EndIf
+    Next
+Return Self
+
+//------------------------------------------------------------------------------
+// BINARY EXPRESSIONS
+//------------------------------------------------------------------------------
+
 Method And( xLeft ) Class QueryBuilder
     Do Case
         Case ::nMode == IN_JOIN_MODE
@@ -437,6 +370,27 @@ Method And( xLeft ) Class QueryBuilder
             UserException( "AND: not inside predicate")
     EndCase
 Return Self
+
+Method Equals( xRight ) Class QueryBuilder
+Return ::BinaryExpr( "=", xRight )
+
+Method GreaterThan( xRight ) Class QueryBuilder
+Return ::BinaryExpr( ">", xRight )
+
+//------------------------------------------------------------------------------
+// AGGREGATION FUNCTIONS
+//------------------------------------------------------------------------------
+
+Method Count( xExpr ) Class QueryBuilder
+    Default xExpr := "1"
+Return ::CallExpr( "COUNT", xExpr )
+
+Method Sum( xExpr ) Class QueryBuilder
+Return ::CallExpr( "SUM", xExpr )
+
+//------------------------------------------------------------------------------
+// EXPOSED API AND CODEGEN
+//------------------------------------------------------------------------------
 
 Method GetSql() Class QueryBuilder
     Local cSql
