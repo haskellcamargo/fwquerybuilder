@@ -11,7 +11,6 @@
 #define OP_FROM   3
 #define OP_GROUP  4
 
-#define SELECT_PREFIX   1
 #define SELECT_VALUE    2
 #define SELECT_AS       3
 #define SELECT_FUNCTION 4
@@ -19,14 +18,8 @@
 #define FROM_VALUE 1
 #define FROM_AS    2
 
-#define GROUP_VALUE 1
-
 #define ORDER_VALUE 1
 #define ORDER_MODE  2
-
-#define BINARY_EXPR_LEFT  1
-#define BINARY_EXPR_OP    2
-#define BINARY_EXPR_RIGHT 3
 
 #define JOIN_MODE   1
 #define JOIN_TABLE  2
@@ -40,6 +33,22 @@
 
 #define IN_JOIN_MODE  1
 #define IN_WHERE_MODE 2
+
+//------------------------------------------------------------------------------
+// EXPRESSION TYPES
+//------------------------------------------------------------------------------
+#define SQL_BINARY_EXPR  1 // { _, xLeft, cOp, xRight }
+#define SQL_BETWEEN_EXPR 2 // { _, xValue, xFrom, xTo }
+#define SQL_UNARY_EXPR   3 // { _, cOp, xExpr }
+
+//------------------------------------------------------------------------------
+// PROPERTY ACCESSORS
+//------------------------------------------------------------------------------
+#define SQL_EXPR_TYPE 1
+
+#define SQL_BINARY_EXPR_LEFT  2
+#define SQL_BINARY_EXPR_OP    3
+#define SQL_BINARY_EXPR_RIGHT 4
 
 #ifdef __HARBOUR__
 Class QueryBuilder
@@ -61,6 +70,7 @@ Class QueryBuilder From LongNameClass
     Data cLastOp     As String
     Data aLastOp     As Array
     Data lDidMount   As Logical
+    Data aStack      As Array
 
     Method New() Constructor
 
@@ -108,8 +118,10 @@ Class QueryBuilder From LongNameClass
     Method GetSql()
 
     // Internal methods
-    Method BinaryExpr( cOperator, xRight )
     Method CallExpr( cCallee, xParam )
+    Method PopNode()
+    Method PushNode( xNode )
+    Method Shift()
 EndClass
 
 Method New() Class QueryBuilder
@@ -117,28 +129,11 @@ Method New() Class QueryBuilder
     ::aGroupBy   := {}
     ::aOrderBy   := {}
     ::aSelect    := {}
-    ::aWhere     := { { "D_E_L_E_T_", "<>", "'*'" } }
+    ::aWhere     := { { SQL_BINARY_EXPR, "D_E_L_E_T_", "<>", "'*'" } }
     ::aJoins     := {}
+    ::aStack     := {}
     ::lUnionAll  := .F.
     ::lDidMount  := .T.
-Return Self
-
-Method BinaryExpr( cOperator, xRight ) Class QueryBuilder
-    Local aPeek
-    Local aSource
-
-    Do Case
-        Case ::nMode == IN_JOIN_MODE
-            aSource := ::aJoin[ JOIN_VALUES ]
-        Case ::nMode == IN_WHERE_MODE
-            aSource := ::aWhere
-        Otherwise
-            UserException( "(" + cOperator + "): not inside predicate")
-    EndCase
-
-    aPeek := ATail( aSource )
-    aPeek[ BINARY_EXPR_OP ]    := cOperator
-    aPeek[ BINARY_EXPR_RIGHT ] := xRight
 Return Self
 
 Method CallExpr( cCallee, xParam ) Class QueryBuilder
@@ -149,6 +144,49 @@ Method CallExpr( cCallee, xParam ) Class QueryBuilder
     ::nLastOp := OP_SELECT
     ::aLastOp := aValue
 Return Self
+
+Method PopNode() Class QueryBuilder
+    Local nLength
+    Local xNode
+
+    nLength := Len( ::aStack )
+    If nLength == 0
+        UserException( "No expression on stack" )
+    EndIf
+
+    xNode := ::aStack[ nLength ]
+    ADel( ::aStack, nLength )
+    ASize( ::aStack, nLength - 1 )
+Return xNode
+
+Method PushNode( xNode ) Class QueryBuilder
+    AAdd( ::aStack, xNode )
+Return xNode
+
+Method Shift() Class QueryBuilder
+    Local nSize
+    Local cOperator
+    Local xLeft
+    Local xRight
+    Local aSource
+
+    Do Case
+        Case ::nMode == IN_JOIN_MODE
+            aSource := ::aJoin[ JOIN_VALUES ]
+        Case ::nMode == IN_WHERE_MODE
+            aSource := ::aWhere
+        Otherwise
+            UserException( "Not inside predicate" )
+    EndCase
+
+    nSize := Len( ::aStack )
+    If nSize >= 3
+        cOperator := ::PopNode()
+        xRight    := ::PopNode()
+        xLeft     := ::PopNode()
+        AAdd( aSource, { SQL_BINARY_EXPR, xLeft, cOperator, xRight } )
+    EndIf
+Return
 
 //------------------------------------------------------------------------------
 // SELECT
@@ -265,9 +303,18 @@ Return Self
 
 Method On( xLeft ) Class QueryBuilder
     Local aValue
+    Local cType
 
-    aValue := { xLeft, Nil, Nil }
-    AAdd( ::aJoin[ JOIN_VALUES ], aValue )
+    cType := ValType( xLeft )
+    Do Case
+        Case cType == "U"
+            Return Self
+        Case cType == "C"
+            ::nMode := IN_JOIN_MODE
+            ::PushNode( xLeft )
+        Otherwise
+            UserException( "WHERE: expected string" )
+    EndCase
 Return Self
 
 //------------------------------------------------------------------------------
@@ -276,10 +323,18 @@ Return Self
 
 Method Where( xLeft ) Class QueryBuilder
     Local aValue
+    Local cType
 
-    ::nMode := IN_WHERE_MODE
-    aValue := { xLeft, Nil, Nil }
-    AAdd( ::aWhere, aValue )
+    cType := ValType( xLeft )
+    Do Case
+        Case cType == "U"
+            Return Self
+        Case cType == "C"
+            ::nMode := IN_WHERE_MODE
+            ::PushNode( xLeft )
+        Otherwise
+            UserException( "WHERE: expected string" )
+    EndCase
 Return Self
 
 //------------------------------------------------------------------------------
@@ -353,7 +408,7 @@ Method GroupBy( xGroupBy ) Class QueryBuilder
         If ValType( xGroupBy[ nIndex ] ) <> "C"
             UserException( "GROUP BY: expected string" )
         EndIf
-        aValue := { xGroupBy[ nIndex ] }
+        aValue := xGroupBy[ nIndex ]
         AAdd( ::aGroupBy, aValue )
         If nIndex == nLength
             ::nLastOp := OP_GROUP
@@ -378,13 +433,26 @@ Method And( xLeft ) Class QueryBuilder
 Return Self
 
 Method Equals( xRight ) Class QueryBuilder
-Return ::BinaryExpr( "=", xRight )
+    ::PushNode( xRight )
+    ::PushNode( "=" )
+    ::Shift()
+Return Self
 
 Method GreaterThan( xRight ) Class QueryBuilder
-Return ::BinaryExpr( ">", xRight )
+    ::PushNode( xRight )
+    ::PushNode( ">" )
+    ::Shift()
+Return Self
 
 Method _In( xRight ) Class QueryBuilder
-Return ::BinaryExpr( "IN", xRight )
+    ::PushNode( xRight )
+    ::PushNode( "IN" )
+    ::Shift()
+Return Self
+
+//------------------------------------------------------------------------------
+// UNARY FUNCTIONS
+//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // AGGREGATION FUNCTIONS
@@ -442,10 +510,6 @@ Static Function GenSelect( aSelect, nTop )
     Else
         For nIndex := 1 To nLength
             aField := aSelect[ nIndex ]
-            // Prefix is given
-            If !Empty( aField[ SELECT_PREFIX ] )
-                cSelect += aField[ SELECT_PREFIX ] + "."
-            EndIf
             // Check wrapping function and append field name
             If !Empty( aField[ SELECT_FUNCTION ] )
                 cSelect += aField[ SELECT_FUNCTION ] + "("
@@ -493,7 +557,7 @@ Static Function GenJoins( aJoins )
 
     nLength := Len( aJoins )
     For nIndex := 1 To nLength
-        aJoin    := aJoins[ nIndex ]
+        aJoin  := aJoins[ nIndex ]
         cJoins += IIf( Empty( aJoin[ JOIN_MODE ] ), "JOIN ", aJoin[ JOIN_MODE ] + " JOIN " )
         cJoins += aJoin[ JOIN_TABLE ] + CRLF
         cJoins += "  ON "
@@ -514,7 +578,7 @@ Static Function GenGroupBy( aGroupBy )
         cGroupBy := "GROUP BY "
         For nIndex := 1 To nLength
             // Append order field name
-            cGroupBy += aGroupBy[ nIndex, ORDER_VALUE ]
+            cGroupBy += aGroupBy[ nIndex ]
             If nIndex < nLength
                 cGroupBy += ", "
             EndIf
@@ -571,7 +635,6 @@ Static Function GenWhere( aWhere )
         cWhere := Space( M->NDEPTH * 4 ) + "WHERE "
         cWhere += GenPredicates( aWhere ) + CRLF
     EndIf
-
 Return cWhere
 
 Static Function GenPredicates( aExpr )
@@ -607,9 +670,12 @@ Static Function GenExpr( xExpr )
             cExpr += "(" + CRLF + xExpr:GetSql() + Space( M->NDEPTH  * 2 ) + ")"
             M->NDEPTH--
         Case cType == "A"
-            cExpr += GenExpr( xExpr[ BINARY_EXPR_LEFT ] )
-            cExpr += " " + xExpr[ BINARY_EXPR_OP ] + " "
-            cExpr += GenExpr( xExpr[ BINARY_EXPR_RIGHT ] )
+            Do Case
+                Case xExpr[ SQL_EXPR_TYPE ] == SQL_BINARY_EXPR
+                    cExpr += GenExpr( xExpr[ SQL_BINARY_EXPR_LEFT ] )
+                    cExpr += " " + xExpr[ SQL_BINARY_EXPR_OP ] + " "
+                    cExpr += GenExpr( xExpr[ SQL_BINARY_EXPR_RIGHT ] )
+            EndCase
         Case cType == "C"
             cExpr += xExpr
     EndCase
