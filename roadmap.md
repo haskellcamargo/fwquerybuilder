@@ -34,6 +34,8 @@
     - [x] MAX
     - [x] MIN
 - [ ] Subqueries
+    - [x] Inside binary expression
+    - [ ] Inside select
 - [ ] Parameters coming from user
 - [ ] Export query to workarea/alias
 

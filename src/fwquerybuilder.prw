@@ -95,6 +95,7 @@ Class QueryBuilder From LongNameClass
     Method And( xLeft )
     Method Equals( xRight )
     Method GreaterThan( xRight )
+    Method _In( xRight )
 
     // Aggregation functions
     Method Avg( xExpr )
@@ -382,6 +383,9 @@ Return ::BinaryExpr( "=", xRight )
 Method GreaterThan( xRight ) Class QueryBuilder
 Return ::BinaryExpr( ">", xRight )
 
+Method _In( xRight ) Class QueryBuilder
+Return ::BinaryExpr( "IN", xRight )
+
 //------------------------------------------------------------------------------
 // AGGREGATION FUNCTIONS
 //------------------------------------------------------------------------------
@@ -425,7 +429,10 @@ Static Function GenSelect( aSelect, nTop )
     Local aField
     Local cSeparator
 
-    cSelect := IIf( nTop == Nil, "SELECT ", "SELECT TOP " + AllTrim( Str( nTop ) ) + " " )
+    Default M->NDEPTH := 0
+
+    cSelect := Space( M->NDEPTH * 4 )
+    cSelect += IIf( nTop == Nil, "SELECT ", "SELECT TOP " + AllTrim( Str( nTop ) ) + " " )
     // Create separator with given spacing
     cSeparator := "," + CRLF + Space( Len( cSelect ) )
     nLength    := Len( aSelect )
@@ -463,7 +470,9 @@ Return cSelect
 Static Function GenFrom( aFrom )
     Local cFrom
 
-    cFrom := "FROM "
+    Default M->NDEPTH := 0
+
+    cFrom := Space( M->NDEPTH * 4 ) + "FROM "
     cFrom += aFrom[ FROM_VALUE ]
     If !Empty( aFrom[ FROM_AS ] )
         cFrom += " " + aFrom[ FROM_AS ]
@@ -554,10 +563,12 @@ Static Function GenWhere( aWhere )
     Local cWhere
     Local nLength
 
+    Default M->NDEPTH := 0
+
     If Empty( aWhere )
         cWhere := ""
     Else
-        cWhere := "WHERE "
+        cWhere := Space( M->NDEPTH * 4 ) + "WHERE "
         cWhere += GenPredicates( aWhere ) + CRLF
     EndIf
 
@@ -569,16 +580,37 @@ Static Function GenPredicates( aExpr )
     Local nLength
     Local cSeparator
 
+    Default M->NDEPTH := 0
+
     cPred   := ""
     nLength := Len( aExpr )
-    cSeparator := CRLF + "  AND "
+    cSeparator := CRLF + Space( M->NDEPTH * 4 ) + "  AND "
     For nIndex := 1 To nLength
-        cPred += aExpr[ nIndex, BINARY_EXPR_LEFT ]
-        cPred += " " + aExpr[ nIndex, BINARY_EXPR_OP ] + " "
-        cPred += aExpr[ nIndex, BINARY_EXPR_RIGHT ]
-
+        cPred += GenExpr( aExpr[ nIndex ] )
         If nIndex < nLength
             cPred += cSeparator
         EndIf
     Next
 Return cPred
+
+Static Function GenExpr( xExpr )
+    Local cType
+    Local cExpr
+
+    Default M->NDEPTH := 0
+
+    cExpr := ""
+    cType := ValType( xExpr )
+    Do Case
+        Case cType == "O" .And. GetClassName( xExpr ) == "QUERYBUILDER"
+            M->NDEPTH++
+            cExpr += "(" + CRLF + xExpr:GetSql() + Space( M->NDEPTH  * 2 ) + ")"
+            M->NDEPTH--
+        Case cType == "A"
+            cExpr += GenExpr( xExpr[ BINARY_EXPR_LEFT ] )
+            cExpr += " " + xExpr[ BINARY_EXPR_OP ] + " "
+            cExpr += GenExpr( xExpr[ BINARY_EXPR_RIGHT ] )
+        Case cType == "C"
+            cExpr += xExpr
+    EndCase
+Return cExpr

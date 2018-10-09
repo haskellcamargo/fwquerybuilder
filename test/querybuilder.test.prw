@@ -24,6 +24,7 @@ TestSuite QueryBuilder Description "Query Builder"
     Feature _18_ Description "AND"
     Feature _19_ Description "AVG"
     Feature _20_ Description "MAX and MIN"
+    Feature _21_ Description "Subquery"
 EndTestSuite
 
 Feature _01_ TestSuite QueryBuilder
@@ -74,7 +75,7 @@ Feature _03_ TestSuite QueryBuilder
 
     oQuery := QueryBuilder():New()
     oQuery:Select( "TJ_ORDEM" )
-    oQuery:Select( { "TJ_CODBEM", "TJ_TERMINO" })
+    oQuery:Select( { "TJ_CODBEM", "TJ_TERMINO" } )
     oQuery:From( "STJ990" )
 
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )
@@ -181,7 +182,7 @@ Feature _10_ TestSuite QueryBuilder
     cExpect += "WHERE D_E_L_E_T_ <> '*'" + CRLF
 
     oQuery := QueryBuilder():New()
-    oQuery:Top( 10 ):Select({ "TJ_ORDEM", "TJ_CODBEM" }):From( "STJ990" )
+    oQuery:Top( 10 ):Select({ "TJ_ORDEM", "TJ_CODBEM" } ):From( "STJ990" )
 
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )
 Return
@@ -363,6 +364,38 @@ Feature _20_ TestSuite QueryBuilder
 
     oQuery := QueryBuilder():New()
     oQuery:Select():Min( "T9_CONTACU" ):Max( "T9_CONTACU" ):From( "ST9990" )
+
+    ::Expect( oQuery:GetSql() ):ToBe( cExpect )
+Return
+
+Feature _21_ TestSuite QueryBuilder
+    Local oQuery
+    Local oSubQuery
+    Local cExpect
+
+    cExpect := "SELECT *" + CRLF
+    cExpect += "FROM DRAG_RACE" + CRLF
+    cExpect += "WHERE D_E_L_E_T_ <> '*'" + CRLF
+    cExpect += "  AND KIND IN (" + CRLF
+    cExpect += "    SELECT A," + CRLF
+    cExpect += "           B" + CRLF
+    cExpect += "    FROM C" + CRLF
+    cExpect += "    WHERE D_E_L_E_T_ <> '*'" + CRLF
+    cExpect += "      AND D > E" + CRLF
+    cExpect += "      AND F = (" + CRLF
+    cExpect += "        SELECT *" + CRLF
+    cExpect += "        FROM SUBSUB" + CRLF
+    cExpect += "        WHERE D_E_L_E_T_ <> '*'" + CRLF
+    cExpect += "    )" + CRLF
+    cExpect += "  )" + CRLF
+
+    oSubQuery := QueryBuilder():New()
+    oSubQuery:Select( { "A", "B" } )
+    oSubQuery:From( "C" )
+    oSubQuery:Where( "D" ):GreaterThan( "E" )
+    oSubQuery:And( "F" ):Equals( QueryBuilder():From( "SUBSUB" ) )
+    oQuery := QueryBuilder():New()
+    oQuery:From( "DRAG_RACE" ):Where( "KIND" ):_In( oSubQuery )
 
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )
 Return
