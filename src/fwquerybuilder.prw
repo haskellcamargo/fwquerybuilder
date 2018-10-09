@@ -130,7 +130,7 @@ Method New() Class QueryBuilder
     ::aGroupBy   := {}
     ::aOrderBy   := {}
     ::aSelect    := {}
-    ::aWhere     := { { SQL_BINARY_EXPR, "D_E_L_E_T_", "<>", "'*'" } }
+    ::aWhere     := {}
     ::aJoins     := {}
     ::aStack     := {}
     ::lUnionAll  := .F.
@@ -228,9 +228,13 @@ Method Select( xSelect ) Class QueryBuilder
 
     Default xSelect := {}
 
+    If Empty( xSelect )
+        Return Self
+    EndIf
+
     cType := ValType( xSelect )
     // Normalize string to array
-    If cType == "C"
+    If cType == "C" .Or. (cType == "O" .And. GetClassName( xSelect ) == "QUERYBUILDER")
         xSelect := { xSelect }
     ElseIf cType <> "A"
         UserException( "SELECT: expected string or array" )
@@ -239,8 +243,8 @@ Method Select( xSelect ) Class QueryBuilder
     // Append each field with specialized anonymous alias and tell from
     nLength := Len( xSelect )
     For nIndex := 1 To nLength
-        If ValType( xSelect[ nIndex ] ) <> "C"
-            UserException( "SELECT: expected string" )
+        If !(ValType( xSelect[ nIndex ] ) $ "CO")
+            UserException( "SELECT: expected string or object" )
         EndIf
         aValue := { Nil, xSelect[ nIndex ], Nil, Nil }
         AAdd( ::aSelect, aValue )
@@ -524,10 +528,10 @@ Static Function GenSelect( aSelect, nTop )
             // Check wrapping function and append field name
             If !Empty( aField[ SELECT_FUNCTION ] )
                 cSelect += aField[ SELECT_FUNCTION ] + "("
-                cSelect += aField[ SELECT_VALUE ]
+                cSelect += GenExpr( aField[ SELECT_VALUE ] )
                 cSelect += ")"
             Else
-                cSelect += aField[ SELECT_VALUE ]
+                cSelect += GenExpr( aField[ SELECT_VALUE ] )
             EndIf
             // Alias is given
             If !Empty( aField[ SELECT_AS ] )

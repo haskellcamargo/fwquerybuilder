@@ -35,7 +35,7 @@
     - [x] MIN
 - [ ] Subqueries
     - [x] Inside binary expression
-    - [ ] Inside select
+    - [x] Inside select
 - [ ] Parameters coming from user
 - [ ] Export query to workarea/alias
 
