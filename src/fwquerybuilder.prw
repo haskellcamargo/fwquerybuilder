@@ -97,7 +97,10 @@ Class QueryBuilder From LongNameClass
     Method GreaterThan( xRight )
 
     // Aggregation functions
+    Method Avg( xExpr )
     Method Count( xExpr )
+    Method Max( xExpr )
+    Method Min( xExpr )
     Method Sum( xExpr )
 
     // Exposed API
@@ -182,6 +185,8 @@ Method Select( xSelect ) Class QueryBuilder
     Local nLength
     Local cType
     Local aValue
+
+    Default xSelect := {}
 
     cType := ValType( xSelect )
     // Normalize string to array
@@ -381,9 +386,18 @@ Return ::BinaryExpr( ">", xRight )
 // AGGREGATION FUNCTIONS
 //------------------------------------------------------------------------------
 
+Method Avg( xExpr ) Class QueryBuilder
+Return ::CallExpr( "AVG", xExpr )
+
 Method Count( xExpr ) Class QueryBuilder
     Default xExpr := "1"
 Return ::CallExpr( "COUNT", xExpr )
+
+Method Max( xExpr ) Class QueryBuilder
+Return ::CallExpr( "MAX", xExpr )
+
+Method Min( xExpr ) Class QueryBuilder
+Return ::CallExpr( "MIN", xExpr )
 
 Method Sum( xExpr ) Class QueryBuilder
 Return ::CallExpr( "SUM", xExpr )

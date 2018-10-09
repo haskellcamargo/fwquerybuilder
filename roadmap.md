@@ -29,10 +29,10 @@
 - [x] Top (limit)
 - [ ] Function aggregation on top select
     - [x] SUM
-    - [ ] AVG
+    - [x] AVG
     - [x] COUNT
-    - [ ] MAX
-    - [ ] MIN
+    - [x] MAX
+    - [x] MIN
 - [ ] Subqueries
 - [ ] Parameters coming from user
 - [ ] Export query to workarea/alias

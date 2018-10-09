@@ -8,8 +8,8 @@ TestSuite QueryBuilder Description "Query Builder"
     Feature _02_ Description "SELECT single field"
     Feature _03_ Description "SELECT multiple fields"
     Feature _04_ Description "SELECT field AS"
-    Feature _05_ Description "SELECT COUNT"
-    Feature _06_ Description "SELECT SUM"
+    Feature _05_ Description "COUNT"
+    Feature _06_ Description "SUM"
     Feature _07_ Description "ORDER BY"
     Feature _08_ Description "ORDER BY ASC"
     Feature _09_ Description "ORDER BY DESC"
@@ -22,6 +22,8 @@ TestSuite QueryBuilder Description "Query Builder"
     Feature _16_ Description "JOIN multiple tables"
     Feature _17_ Description "WHERE"
     Feature _18_ Description "AND"
+    Feature _19_ Description "AVG"
+    Feature _20_ Description "MAX and MIN"
 EndTestSuite
 
 Feature _01_ TestSuite QueryBuilder
@@ -105,6 +107,7 @@ Feature _05_ TestSuite QueryBuilder
 
     oQuery := QueryBuilder():New()
     oQuery:Count():_As( "TOTAL" ):From( "STJ990" )
+
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )
 Return
 
@@ -118,6 +121,7 @@ Feature _06_ TestSuite QueryBuilder
 
     oQuery := QueryBuilder():New()
     oQuery:Sum( "TJ_POSCONT" ):From( "STJ990" )
+
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )
 Return
 
@@ -330,6 +334,35 @@ Feature _18_ TestSuite QueryBuilder
     oQuery:And( "SADNESS" ):Equals( "BLAH" )
     oQuery:Where( "T9_CONTACU" ):GreaterThan( "OTHER_FIELD" )
     oQuery:And( "A" ):Equals( "B" )
+
+    ::Expect( oQuery:GetSql() ):ToBe( cExpect )
+Return
+
+Feature _19_ TestSuite QueryBuilder
+    Local oQuery
+    Local cExpect
+
+    cExpect := "SELECT AVG(T9_CONTACU)" + CRLF
+    cExpect += "FROM ST9990" + CRLF
+    cExpect += "WHERE D_E_L_E_T_ <> '*'" + CRLF
+
+    oQuery := QueryBuilder():New()
+    oQuery:Avg( "T9_CONTACU" ):From( "ST9990" )
+
+    ::Expect( oQuery:GetSql() ):ToBe( cExpect )
+Return
+
+Feature _20_ TestSuite QueryBuilder
+    Local oQuery
+    Local cExpect
+
+    cExpect := "SELECT MIN(T9_CONTACU)," + CRLF
+    cExpect += "       MAX(T9_CONTACU)" + CRLF
+    cExpect += "FROM ST9990" + CRLF
+    cExpect += "WHERE D_E_L_E_T_ <> '*'" + CRLF
+
+    oQuery := QueryBuilder():New()
+    oQuery:Select():Min( "T9_CONTACU" ):Max( "T9_CONTACU" ):From( "ST9990" )
 
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )
 Return
