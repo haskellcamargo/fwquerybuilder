@@ -175,7 +175,7 @@ Feature _10_ TestSuite QueryBuilder
     cExpect += "FROM STJ990" + CRLF
 
     oQuery := QueryBuilder():New()
-    oQuery:Top( 10 ):Select({ "TJ_ORDEM", "TJ_CODBEM" } ):From( "STJ990" )
+    oQuery:Top( 10 ):Select( { "TJ_ORDEM", "TJ_CODBEM" } ):From( "STJ990" )
 
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )
 Return
