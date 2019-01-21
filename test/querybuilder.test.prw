@@ -27,6 +27,7 @@ TestSuite QueryBuilder Description "Query Builder"
     Feature _21_ Description "Subquery"
     Feature _22_ Description "LIKE"
     Feature _23_ Description "SELECT SELECT"
+    Feature _24_ Description "OR"
 EndTestSuite
 
 Feature _01_ TestSuite QueryBuilder
@@ -308,14 +309,14 @@ Feature _18_ TestSuite QueryBuilder
     cExpect += "INNER JOIN FEELINGS" + CRLF
     cExpect += "  ON DEPRESSION > INFINITY"  + CRLF
     cExpect += "  AND SADNESS = BLAH" + CRLF
-    cExpect += "WHERE T9_CONTACU > OTHER_FIELD" + CRLF
+    cExpect += "WHERE T9_CONTACU < OTHER_FIELD" + CRLF
     cExpect += "  AND A = B" + CRLF
 
     oQuery := QueryBuilder():New()
     oQuery:From( "ST9990" )
     oQuery:InnerJoin( "FEELINGS" ):On( "DEPRESSION" ):GreaterThan( "INFINITY" )
     oQuery:And( "SADNESS" ):Equals( "BLAH" )
-    oQuery:Where( "T9_CONTACU" ):GreaterThan( "OTHER_FIELD" )
+    oQuery:Where( "T9_CONTACU" ):LessThan( "OTHER_FIELD" )
     oQuery:And( "A" ):Equals( "B" )
 
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )
@@ -409,6 +410,28 @@ Feature _23_ TestSuite QueryBuilder
     oQuery:Select( QueryBuilder():From( "ANOTHER" ) )
     oQuery:Select( QueryBuilder():From( "AND_OTHER" ) ):_As( "POTATO" )
     oQuery:From( "CHAOS" )
+
+    ::Expect( oQuery:GetSql() ):ToBe( cExpect )
+Return
+
+Feature _24_ TestSuite QueryBuilder
+    Local oQuery
+    Local cExpect
+
+    cExpect := "SELECT *" + CRLF
+    cExpect += "FROM ST9990" + CRLF
+    cExpect += "INNER JOIN FEELINGS" + CRLF
+    cExpect += "  ON DEPRESSION >= INFINITY"  + CRLF
+    cExpect += "  OR SADNESS = BLAH" + CRLF
+    cExpect += "WHERE T9_CONTACU <= OTHER_FIELD" + CRLF
+    cExpect += "  OR A = B" + CRLF
+
+    oQuery := QueryBuilder():New()
+    oQuery:From( "ST9990" )
+    oQuery:InnerJoin( "FEELINGS" ):On( "DEPRESSION" ):GreaterOrEqual( "INFINITY" )
+    oQuery:Or( "SADNESS" ):Equals( "BLAH" )
+    oQuery:Where( "T9_CONTACU" ):LessOrEqual( "OTHER_FIELD" )
+    oQuery:Or( "A" ):Equals( "B" )
 
     ::Expect( oQuery:GetSql() ):ToBe( cExpect )
 Return

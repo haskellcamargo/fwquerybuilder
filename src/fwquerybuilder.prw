@@ -35,6 +35,12 @@
 #define IN_WHERE_MODE 2
 
 //------------------------------------------------------------------------------
+// RELATIONSHIP OPERATIONS ON PREDICATES
+//------------------------------------------------------------------------------
+#define RELATION_AND 1
+#define RELATION_OR  2
+
+//------------------------------------------------------------------------------
 // EXPRESSION TYPES
 //------------------------------------------------------------------------------
 #define SQL_BINARY_EXPR  1 // { _, xLeft, cOp, xRight }
@@ -71,6 +77,7 @@ Class QueryBuilder From LongNameClass
     Data aLastOp     As Array
     Data lDidMount   As Logical
     Data aStack      As Array
+    Data nRelation   As Numeric
 
     Method New() Constructor
 
@@ -102,11 +109,15 @@ Class QueryBuilder From LongNameClass
     Method GroupBy( xGroupBy )
 
     // Binary expressions
-    Method And( xLeft )
+    Method And( xRight )
     Method Equals( xRight )
+    Method GreaterOrEqual( xRight )
     Method GreaterThan( xRight )
     Method _In( xRight )
+    Method LessOrEqual( xRight )
+    Method LessThan( xRight )
     Method Like( xRight )
+    Method Or( xRight )
 
     // Aggregation functions
     Method Avg( xExpr )
@@ -135,6 +146,7 @@ Method New() Class QueryBuilder
     ::aStack     := {}
     ::lUnionAll  := .F.
     ::lDidMount  := .T.
+    ::nRelation  := RELATION_AND
 Return Self
 
 Method CallExpr( cCallee, xParam ) Class QueryBuilder
@@ -170,6 +182,8 @@ Method Shift() Class QueryBuilder
     Local xLeft
     Local xRight
     Local aSource
+    Local aExpr
+    Local nLenSource
 
     Do Case
         Case ::nMode == IN_JOIN_MODE
@@ -185,7 +199,17 @@ Method Shift() Class QueryBuilder
         cOperator := ::PopNode()
         xRight    := ::PopNode()
         xLeft     := ::PopNode()
-        AAdd( aSource, { SQL_BINARY_EXPR, xLeft, cOperator, xRight } )
+        aExpr     := { SQL_BINARY_EXPR, xLeft, cOperator, xRight }
+
+        // When we have 1+ items in the predicate source, we rebind the relation
+        // on the last element
+        nLenSource := Len( aSource )
+        If nLenSource >= 1
+            aSource[ nLenSource, 2 ] := ::nRelation
+            ::nRelation := RELATION_AND
+        EndIf
+
+        AAdd( aSource, { aExpr, ::nRelation } )
     EndIf
 Return
 
@@ -426,12 +450,14 @@ Return Self
 // BINARY EXPRESSIONS
 //------------------------------------------------------------------------------
 
-Method And( xLeft ) Class QueryBuilder
+Method And( xRight ) Class QueryBuilder
+    ::nRelation := RELATION_AND
+
     Do Case
         Case ::nMode == IN_JOIN_MODE
-            ::On( xLeft )
+            ::On( xRight )
         Case ::nMode == IN_WHERE_MODE
-            ::Where( xLeft )
+            ::Where( xRight )
         Otherwise
             UserException( "AND: not inside predicate")
     EndCase
@@ -440,6 +466,12 @@ Return Self
 Method Equals( xRight ) Class QueryBuilder
     ::PushNode( xRight )
     ::PushNode( "=" )
+    ::Shift()
+Return Self
+
+Method GreaterOrEqual( xRight ) Class QueryBuilder
+    ::PushNode( xRight )
+    ::PushNode( ">=" )
     ::Shift()
 Return Self
 
@@ -455,6 +487,18 @@ Method _In( xRight ) Class QueryBuilder
     ::Shift()
 Return Self
 
+Method LessOrEqual( xRight ) Class QueryBuilder
+    ::PushNode( xRight )
+    ::PushNode( "<=" )
+    ::Shift()
+Return Self
+
+Method LessThan( xRight ) Class QueryBuilder
+    ::PushNode( xRight )
+    ::PushNode( "<" )
+    ::Shift()
+Return Self
+
 Method Like( cRight ) Class QueryBuilder
     If ValType( cRight ) <> "C"
         UserException( "LIKE: expected pattern" )
@@ -463,6 +507,19 @@ Method Like( cRight ) Class QueryBuilder
     ::PushNode( ValToSql( cRight ) )
     ::PushNode( "LIKE" )
     ::Shift()
+Return Self
+
+Method Or( xRight ) Class QueryBuilder
+    ::nRelation := RELATION_OR
+
+    Do Case
+        Case ::nMode == IN_JOIN_MODE
+            ::On( xRight, "OR" )
+        Case ::nMode == IN_WHERE_MODE
+            ::Where( xRight, "OR" )
+        Otherwise
+            UserException( "OR: not inside predicate")
+    EndCase
 Return Self
 
 //------------------------------------------------------------------------------
@@ -657,16 +714,18 @@ Static Function GenPredicates( aExpr )
     Local nIndex
     Local nLength
     Local cSeparator
+    Local cRelation
 
     Default M->NDEPTH := 0
 
     cPred   := ""
     nLength := Len( aExpr )
-    cSeparator := CRLF + Space( M->NDEPTH * 4 ) + "  AND "
+    cSeparator := CRLF + Space( M->NDEPTH * 4 )
     For nIndex := 1 To nLength
-        cPred += GenExpr( aExpr[ nIndex ] )
+        cPred += GenExpr( aExpr[ nIndex, 1 ] )
+        cRelation := IIf( aExpr[ nIndex, 2 ] == RELATION_AND, "AND", "OR" )
         If nIndex < nLength
-            cPred += cSeparator
+            cPred += cSeparator + "  " + cRelation + " "
         EndIf
     Next
 Return cPred

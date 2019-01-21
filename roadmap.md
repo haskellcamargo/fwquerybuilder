@@ -12,28 +12,28 @@
 - [ ] Expressions
     - [x] Equals
     - [x] Greater than
-    - [ ] Less than
-    - [ ] Greater or equal
-    - [ ] Less or equal
-    - [ ] IN clause
+    - [x] Less than
+    - [x] Greater or equal
+    - [x] Less or equal
+    - [x] IN clause
     - [ ] Exists clause
     - [x] AND
-    - [ ] OR
+    - [x] OR
 - [x] Join
     - [x] Simple join
     - [x] Inner join
     - [x] Left join
     - [x] Multiple joins
-- [ ] Where clause
+- [x] Where clause
 - [ ] CTE support
 - [x] Top (limit)
-- [ ] Function aggregation on top select
+- [x] Function aggregation on top select
     - [x] SUM
     - [x] AVG
     - [x] COUNT
     - [x] MAX
     - [x] MIN
-- [ ] Subqueries
+- [x] Subqueries
     - [x] Inside binary expression
     - [x] Inside select
 - [ ] Parameters coming from user
@@ -49,4 +49,3 @@
 
 - [ ] Generate SQL Server and Oracle queries
 - [ ] Prettify query
-
